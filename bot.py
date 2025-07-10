@@ -10,7 +10,7 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = 'YOUR_BOT_TOKEN'
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 FFMPEG_PATH = "ffmpeg"  # Agar renderda ishlatsa, system-wide ffmpeg ishlatiladi
 
