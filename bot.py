@@ -10,9 +10,9 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+TOKEN = 'YOUR_BOT_TOKEN'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
-FFMPEG_PATH = r"C:\Users\User\Downloads\ffmpeg-7.1.1-essentials_build\ffmpeg-7.1.1-essentials_build\bin\ffmpeg.exe"
+FFMPEG_PATH = "ffmpeg"  # Agar renderda ishlatsa, system-wide ffmpeg ishlatiladi
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -43,14 +43,14 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if "youtube.com" in url or "youtu.be" in url:
         btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎵 MP3", callback_data=f"mp3|{url}")],
-            [InlineKeyboardButton("🎥 MP4", callback_data=f"mp4|{url}")],
+            [InlineKeyboardButton("🎵 MP3", callback_data="mp3")],
+            [InlineKeyboardButton("🎥 MP4", callback_data="mp4")],
         ])
         await update.message.reply_text("📥 Yuklab olish formatini tanlang:", reply_markup=btn)
 
     elif "instagram.com" in url:
         btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📲 Yuklab olish", callback_data=f"insta|{url}")],
+            [InlineKeyboardButton("📲 Yuklab olish", callback_data="insta")],
         ])
         await update.message.reply_text("📥 Instagram videoni yuklashni tasdiqlang:", reply_markup=btn)
 
@@ -60,22 +60,24 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    data = query.data
-    format_type, url = data.split("|", 1)
+    format_type = query.data
+    url = context.user_data.get('url')
+
+    if not url:
+        await query.message.reply_text("❗ Avval link yuboring.")
+        return
+
     await query.edit_message_text("⏬ Yuklab olinmoqda...")
 
     try:
-        # Foyllarni toza saqlash uchun nom
         output = "%(title)s.%(ext)s"
 
-        # Instagram uchun
         if format_type == "insta":
             ydl_opts = {
                 'outtmpl': output,
                 'quiet': True,
                 'ffmpeg_location': FFMPEG_PATH,
             }
-        # YouTube MP3
         elif format_type == "mp3":
             ydl_opts = {
                 'format': 'bestaudio/best',
@@ -89,8 +91,7 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'preferredquality': '192',
                 }],
             }
-        # YouTube MP4
-        else:
+        else:  # mp4
             ydl_opts = {
                 'format': 'bestvideo+bestaudio',
                 'ffmpeg_location': FFMPEG_PATH,
@@ -100,15 +101,12 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'merge_output_format': 'mp4',
             }
 
-        # Yuklab olish
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-
             if format_type == "mp3":
                 filename = filename.rsplit(".", 1)[0] + ".mp3"
 
-        # Yuborish
         with open(filename, "rb") as f:
             if filename.endswith(".mp3"):
                 await query.message.reply_audio(f, caption="✅ MP3 tayyor!")
@@ -125,16 +123,11 @@ async def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(check_subscription, pattern="check_sub"))
-    app.add_handler(CallbackQueryHandler(download_file, pattern=r"^(mp3|mp4|insta)\|"))
+    app.add_handler(CallbackQueryHandler(download_file, pattern=r"^(mp3|mp4|insta)$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
     print("✅ Bot ishga tushdi...")
     await app.run_polling()
 
 if __name__ == "__main__":
-    try:
-        asyncio.get_event_loop().run_until_complete(main())
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
+    asyncio.run(main())
