@@ -10,12 +10,11 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-# Bu yerga haqiqiy tokeningizni qo'ying!
 TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
-
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 
-FFMPEG_PATH = "/usr/bin/ffmpeg"  # Serveringizga mos keladigan joyni yozing
+# FFMPEG_PATH ni olib tashladim, chunki ffmpeg yo'q
+# FFMPEG_PATH = "/usr/bin/ffmpeg"
 
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
@@ -90,8 +89,8 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ydl_opts = {
             'outtmpl': output,
             'quiet': True,
-            'ffmpeg_location': FFMPEG_PATH,
             'noplaylist': True,
+            # 'ffmpeg_location': FFMPEG_PATH,  # olib tashlandi
         }
 
         if "instagram.com" in url:
@@ -111,8 +110,8 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif format_type in ["mp4", "insta"]:
             ydl_opts.update({
-                'format': 'bestvideo+bestaudio/best',
-                'merge_output_format': 'mp4',
+                'format': 'best',
+                # 'merge_output_format': 'mp4', # ffmpeg kerak bo‘ladi, olib tashlash mumkin
             })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
