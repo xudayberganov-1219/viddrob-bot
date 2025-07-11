@@ -15,17 +15,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Konfiguratsiya
-TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME')
-CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME', '@IT_kanal_oo1')
-FFMPEG_PATH = os.getenv('FFMPEG_PATH', '/usr/bin/ffmpeg')
-COOKIES_INSTAGRAM = os.getenv('COOKIES_INSTAGRAM', 'cookies_instagram.txt')
-COOKIES_YOUTUBE = os.getenv('COOKIES_YOUTUBE', 'cookies_youtube.txt')
-
-# Xatolikni qayta ishlash
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.error(msg="Xatolik yuz berdi:", exc_info=context.error)
-    if update and hasattr(update, 'message'):
-        await update.message.reply_text('⚠️ Kechirasiz, xatolik yuz berdi. Iltimos, qayta urunib ko\'ring.')
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+CHANNEL_USERNAME = '@IT_kanal_oo1'
+FFMPEG_PATH = '/usr/bin/ffmpeg'
+COOKIES_INSTAGRAM = 'cookies_instagram.txt'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -42,7 +35,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         await update.message.reply_text("👋 Salom!\nBotdan foydalanish uchun kanalga obuna bo'ling:", reply_markup=btn)
     else:
-        await update.message.reply_text("🎬 YouTube yoki Instagram link yuboring:")
+        await update.message.reply_text("🎬 Instagram video linkini yuboring:")
 
 async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -55,115 +48,88 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not member or member.status not in ['member', 'creator', 'administrator']:
         await update.callback_query.answer("❌ Obuna bo'lmagansiz!", show_alert=True)
     else:
-        await update.callback_query.edit_message_text("✅ Obuna tasdiqlandi! Endi link yuboring.")
+        await update.callback_query.edit_message_text("✅ Obuna tasdiqlandi! Endi Instagram video linkini yuboring.")
 
-async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def handle_instagram_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
+    
+    if not "instagram.com" in url:
+        await update.message.reply_text("❌ Faqat Instagram link yuboring!")
+        return
+    
     context.user_data['url'] = url
+    btn = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📲 Yuklab olish", callback_data="download_insta")]
+    ])
+    await update.message.reply_text("📥 Yuklashni boshlash uchun tugmani bosing:", reply_markup=btn)
 
-    if "youtube.com" in url or "youtu.be" in url:
-        btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🎵 MP3", callback_data="mp3")],
-            [InlineKeyboardButton("🎥 MP4", callback_data="mp4")],
-        ])
-        await update.message.reply_text("📥 Yuklab olish formatini tanlang:", reply_markup=btn)
-    elif "instagram.com" in url:
-        btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📲 Yuklab olish", callback_data="insta")],
-        ])
-        await update.message.reply_text("📥 Instagram videoni yuklashni tasdiqlang:", reply_markup=btn)
-    else:
-        await update.message.reply_text("❌ Faqat YouTube yoki Instagram link yuboring.")
-
-async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def download_instagram_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    format_type = query.data
     url = context.user_data.get('url')
-
+    
     if not url:
-        await query.edit_message_text("❗ Avval link yuboring.")
+        await query.edit_message_text("❗ Avval Instagram link yuboring.")
         return
-
-    await query.edit_message_text("⏬ Yuklab olinmoqda...")
-
+    
+    await query.edit_message_text("⏬ Video yuklanmoqda...")
+    
     try:
-        output = "downloads/%(title)s.%(ext)s"
         ydl_opts = {
-            'outtmpl': output,
+            'outtmpl': 'downloads/%(title)s.%(ext)s',
             'quiet': True,
             'ffmpeg_location': FFMPEG_PATH,
-            'noplaylist': True,
+            'cookiefile': COOKIES_INSTAGRAM,
+            'format': 'bestvideo+bestaudio/best',
+            'merge_output_format': 'mp4',
         }
 
-        if "instagram.com" in url:
-            ydl_opts['cookiefile'] = COOKIES_INSTAGRAM
-        elif "youtube.com" in url or "youtu.be" in url:
-            ydl_opts['cookiefile'] = COOKIES_YOUTUBE
-
-        if format_type == "mp3":
-            ydl_opts.update({
-                'format': 'bestaudio/best',
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',
-                    'preferredquality': '192',
-                }],
-            })
-        elif format_type in ["mp4", "insta"]:
-            ydl_opts.update({
-                'format': 'bestvideo+bestaudio/best',
-                'merge_output_format': 'mp4',
-            })
-
-        # Yuklab olish jarayoni
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             filename = ydl.prepare_filename(info)
-            if format_type == "mp3":
-                filename = filename.rsplit(".", 1)[0] + ".mp3"
 
-        # Faylni yuborish
-        with open(filename, "rb") as f:
-            if filename.endswith(".mp3"):
-                await query.message.reply_audio(f, caption="✅ MP3 tayyor!")
-            else:
-                await query.message.reply_video(f, caption="✅ Video tayyor!")
+        with open(filename, "rb") as video_file:
+            await query.message.reply_video(
+                video=video_file,
+                caption="✅ Video muvaffaqiyatli yuklandi!",
+                supports_streaming=True
+            )
 
-        # Faylni o'chirish
         os.remove(filename)
-
+        
     except Exception as e:
         logger.error(f"Yuklab olishda xato: {e}")
-        await query.edit_message_text(f"❌ Yuklab olishda xatolik:\n{e}")
+        await query.edit_message_text(f"❌ Xatolik yuz berdi: {str(e)}")
 
 def main():
     # Botni ishga tushirish
-    application = ApplicationBuilder().token(TOKEN).build()
+    application = ApplicationBuilder() \
+        .token(TOKEN) \
+        .concurrent_updates(False) \
+        .build()
 
-    # Xatolik handlerini qo'shish
-    application.add_error_handler(error_handler)
+    # Xatolik handleri
+    application.add_error_handler(lambda u, c: logger.error("Xatolik:", exc_info=c.error))
 
-    # Command handlerlari
+    # Handlerlarni qo'shish
     application.add_handler(CommandHandler("start", start))
-    
-    # Callback query handlerlari
     application.add_handler(CallbackQueryHandler(check_subscription, pattern="check_sub"))
-    application.add_handler(CallbackQueryHandler(download_file, pattern=r"^(mp3|mp4|insta)$"))
-    
-    # Message handlerlari
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+    application.add_handler(CallbackQueryHandler(download_instagram_video, pattern="download_insta"))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_instagram_link))
 
     # Botni ishga tushirish
     logger.info("Bot ishga tushdi...")
+    
+    # downloads papkasini yaratish
+    os.makedirs("downloads", exist_ok=True)
+    
+    # Pollingni boshlash
     application.run_polling(
         drop_pending_updates=True,
+        close_loop=False,
+        stop_signals=None,
         allowed_updates=Update.ALL_TYPES
     )
 
 if __name__ == "__main__":
-    # downloads papkasini yaratish
-    os.makedirs("downloads", exist_ok=True)
-    
-    # Botni ishga tushirish
     main()
