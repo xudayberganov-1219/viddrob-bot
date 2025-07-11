@@ -1,3 +1,0 @@
-python-telegram-bot==20.3
-yt-dlp==2024.5.27
-nest_asyncio==1.5.8
