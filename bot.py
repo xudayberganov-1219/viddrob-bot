@@ -14,12 +14,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'  # O'zingizni haqiqiy tokeningizni kiriting
-CHANNEL_USERNAME = "@IT_kanal_oo1"
-
-FFMPEG_PATH = "/usr/bin/ffmpeg"  # Agar Railway yoki serverda ffmpeg o'rnatilgan bo'lsa
-COOKIES_INSTAGRAM = "cookies_instagram.txt"
-COOKIES_YOUTUBE = "cookies_youtube.txt"
+# Environment variables
+TOKEN = os.getenv('7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME')
+CHANNEL_USERNAME = os.getenv('CHANNEL_USERNAME', '@IT_kanal_oo1')
+FFMPEG_PATH = os.getenv('FFMPEG_PATH', '/usr/bin/ffmpeg')
+COOKIES_INSTAGRAM = os.getenv('COOKIES_INSTAGRAM', 'cookies_instagram.txt')
+COOKIES_YOUTUBE = os.getenv('COOKIES_YOUTUBE', 'cookies_youtube.txt')
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -143,7 +143,7 @@ def main():
 
     # Pollingni boshlash
     logger.info("Bot ishga tushdi...")
-    application.run_polling()
+    application.run_polling(drop_pending_updates=True)  # Eski updatelarni o'tkazib yuborish
 
 if __name__ == "__main__":
     main()
