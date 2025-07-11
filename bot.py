@@ -9,7 +9,7 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = 'SIZNING_BOT_TOKENINGIZ_BU YERGA'  # o'zingizni haqiqiy tokeningizni kiriting
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'  # o'zingizni haqiqiy tokeningizni kiriting
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 
 FFMPEG_PATH = "/usr/bin/ffmpeg"  # Agar Railway yoki serverda ffmpeg o'rnatilgan bo'lsa, yo'l shunday bo'ladi
