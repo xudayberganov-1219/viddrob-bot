@@ -11,6 +11,7 @@ import re
 from urllib.parse import urlparse
 import signal
 import sys
+import time
 
 # Loglarni sozlash
 logging.basicConfig(
@@ -29,12 +30,18 @@ os.makedirs("downloads", exist_ok=True)
 
 # Global application variable
 application = None
+bot_running = False
 
 def signal_handler(signum, frame):
     """Graceful shutdown"""
+    global bot_running
     logger.info("🛑 Bot to'xtatilmoqda...")
+    bot_running = False
     if application:
-        asyncio.create_task(application.stop())
+        try:
+            asyncio.create_task(application.stop())
+        except:
+            pass
     sys.exit(0)
 
 # Signal handlerlarni o'rnatish
@@ -227,7 +234,7 @@ async def show_quality_menu(update, context, format_type):
     await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def download_media(update, context, quality):
-    """Media yuklash"""
+    """Media yuklash - Cookie muammosini hal qilish"""
     query = update.callback_query
     await query.answer()
     
@@ -243,7 +250,7 @@ async def download_media(update, context, quality):
     progress_msg = await query.edit_message_text("⏬ Yuklab olish boshlandi...\n⏳ Iltimos, kuting...")
     
     try:
-        # yt-dlp sozlamalari
+        # yt-dlp sozlamalari - Cookie muammosini hal qilish
         ydl_opts = {
             'outtmpl': 'downloads/%(title)s.%(ext)s',
             'quiet': True,
@@ -252,17 +259,20 @@ async def download_media(update, context, quality):
             'writethumbnail': False,
             'writeinfojson': False,
             'ignoreerrors': True,
+            'no_check_certificate': True,
         }
         
-        # YouTube uchun maxsus sozlamalar
+        # YouTube uchun maxsus sozlamalar - Cookie muammosini hal qilish
         if platform == 'youtube':
             ydl_opts.update({
                 'extractor_args': {
                     'youtube': {
                         'skip': ['dash', 'hls'],
-                        'player_skip': ['configs', 'webpage']
+                        'player_skip': ['configs', 'webpage'],
+                        'player_client': ['android', 'web']
                     }
-                }
+                },
+                'format': 'best[height<=720]/best',  # YouTube uchun cheklangan format
             })
         
         # Format sozlamalari
@@ -276,16 +286,17 @@ async def download_media(update, context, quality):
                 }],
             })
         else:  # mp4
-            if quality == '144':
-                ydl_opts['format'] = 'worst[height<=144]/worst'
-            elif quality == '360':
-                ydl_opts['format'] = 'best[height<=360]/best'
-            elif quality == '720':
-                ydl_opts['format'] = 'best[height<=720]/best'
-            elif quality == '1080':
-                ydl_opts['format'] = 'best[height<=1080]/best'
-            else:
-                ydl_opts['format'] = 'best'
+            if platform != 'youtube':  # YouTube uchun yuqorida format belgilangan
+                if quality == '144':
+                    ydl_opts['format'] = 'worst[height<=144]/worst'
+                elif quality == '360':
+                    ydl_opts['format'] = 'best[height<=360]/best'
+                elif quality == '720':
+                    ydl_opts['format'] = 'best[height<=720]/best'
+                elif quality == '1080':
+                    ydl_opts['format'] = 'best[height<=1080]/best'
+                else:
+                    ydl_opts['format'] = 'best'
             
             ydl_opts['merge_output_format'] = 'mp4'
         
@@ -294,7 +305,13 @@ async def download_media(update, context, quality):
             await progress_msg.edit_text("📊 Video ma'lumotlari olinmoqda...")
             
             try:
+                # Video ma'lumotlarini olish
                 info = ydl.extract_info(url, download=False)
+                
+                if not info:
+                    await progress_msg.edit_text("❌ Video ma'lumotlari olinmadi! Link tekshiring.")
+                    return
+                
                 title = info.get('title', 'Unknown')
                 duration = info.get('duration', 0)
                 
@@ -304,6 +321,8 @@ async def download_media(update, context, quality):
                     return
                 
                 await progress_msg.edit_text("⏬ Yuklab olish boshlandi...")
+                
+                # Video yuklab olish
                 ydl.download([url])
                 
                 # Fayl topish
@@ -362,7 +381,8 @@ async def download_media(update, context, quality):
                         "💡 Yechim:\n"
                         "• Biroz kutib qayta urinib ko'ring\n"
                         "• Boshqa video linkini sinab ko'ring\n"
-                        "• Video ochiq (public) ekanligini tekshiring"
+                        "• Video ochiq (public) ekanligini tekshiring\n"
+                        "• Instagram yoki TikTok linkini sinab ko'ring"
                     )
                 elif "Private video" in error_msg:
                     await progress_msg.edit_text("❌ Bu video shaxsiy! Faqat ochiq videolarni yuklab olish mumkin.")
@@ -379,7 +399,8 @@ async def download_media(update, context, quality):
             "• Link to'g'riligini tekshiring\n"
             "• Biroz kutib qayta urinib ko'ring\n"
             "• Video ochiq (public) ekanligini tekshiring\n"
-            "• Boshqa formatni sinab ko'ring"
+            "• Boshqa formatni sinab ko'ring\n"
+            "• Instagram yoki TikTok linkini sinab ko'ring"
         )
         await progress_msg.edit_text(error_text)
 
@@ -396,9 +417,9 @@ async def show_help(update, context):
         "3. Sifat tanlang\n"
         "4. Yuklab olishni kuting\n\n"
         "📱 **Qo'llab-quvvatlanadigan platformalar:**\n"
-        "• Instagram (post, reel, story)\n"
-        "• YouTube (video, shorts)\n"
-        "• TikTok (video)\n\n"
+        "• Instagram (post, reel, story) ✅\n"
+        "• YouTube (video, shorts) ⚠️\n"
+        "• TikTok (video) ✅\n\n"
         "🎬 **Video sifatlari:**\n"
         "• 144p - Kichik hajm\n"
         "• 360p - O'rtacha sifat\n"
@@ -412,9 +433,9 @@ async def show_help(update, context):
         "• Maksimal fayl hajmi: 50MB\n"
         "• Maksimal davomiylik: 15 daqiqa\n"
         "• Faqat ochiq videolar\n\n"
-        "❓ **Muammo bo'lsa:**\n"
-        "• Link to'g'riligini tekshiring\n"
-        "• Internet aloqasini tekshiring\n"
+        "❓ **YouTube muammosi:**\n"
+        "• YouTube ba'zan bot deb aniqlaydi\n"
+        "• Instagram va TikTok yaxshi ishlaydi\n"
         "• Biroz kutib qayta urinib ko'ring"
     )
     
@@ -439,10 +460,11 @@ async def show_stats(update, context):
         "• 7 xil sifat tanlovlari\n"
         "• MP3 va MP4 formatlar\n"
         "• Tez va xavfsiz yuklab olish\n\n"
-        "💡 **Yangiliklar:**\n"
-        "• YouTube xatoliklari tuzatildi\n"
-        "• Sifat tanlovlari yaxshilandi\n"
-        "• Barqaror ishlash ta'minlandi"
+        "💡 **Holat:**\n"
+        "• Instagram: ✅ Yaxshi ishlaydi\n"
+        "• TikTok: ✅ Yaxshi ishlaydi\n"
+        "• YouTube: ⚠️ Ba'zan muammo\n"
+        "• Bot barqaror ishlaydi"
     )
     
     keyboard = [[InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_menu")]]
@@ -481,12 +503,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Xatolik handler"""
-    logger.error(f"Xatolik yuz berdi: {context.error}")
+    error_str = str(context.error)
     
     # Conflict xatosini ignore qilish
-    if "Conflict" in str(context.error) and "getUpdates" in str(context.error):
+    if "Conflict" in error_str and "getUpdates" in error_str:
         logger.info("Bot conflict xatosi - ignore qilindi")
         return
+    
+    logger.error(f"Xatolik yuz berdi: {context.error}")
     
     if update and update.effective_message:
         try:
@@ -499,7 +523,7 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     """Asosiy funksiya - Railway uchun"""
-    global application
+    global application, bot_running
     
     # Bot yaratish
     application = ApplicationBuilder().token(TOKEN).build()
@@ -514,22 +538,31 @@ def main():
     
     # Bot ishga tushirish
     logger.info("🚀 Bot ishga tushdi...")
+    bot_running = True
     
     try:
-        # Railway uchun polling
+        # Railway uchun polling - conflict muammosini hal qilish
         application.run_polling(
             drop_pending_updates=True,
             allowed_updates=Update.ALL_TYPES,
-            close_loop=False
+            close_loop=False,
+            stop_signals=None  # Signal handlingni o'chirish
         )
         
     except Exception as e:
         logger.error(f"Bot ishga tushirishda xato: {e}")
+        time.sleep(5)  # 5 soniya kutish
+        if bot_running:
+            main()  # Qayta ishga tushirish
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
         logger.info("🛑 Bot to'xtatildi")
+        bot_running = False
     except Exception as e:
         logger.error(f"Asosiy xato: {e}")
+        if bot_running:
+            time.sleep(10)
+            main()  # Qayta ishga tushirish
