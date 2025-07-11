@@ -7,8 +7,8 @@ from telegram.ext import (
     CallbackQueryHandler, ContextTypes, filters
 )
 import yt_dlp
-from urllib.parse import urlparse
 import re
+from urllib.parse import urlparse
 
 # Loglarni sozlash
 logging.basicConfig(
@@ -23,20 +23,21 @@ CHANNEL_USERNAME = '@IT_kanal_oo1'
 FFMPEG_PATH = '/usr/bin/ffmpeg'
 COOKIES_INSTAGRAM = 'cookies_instagram.txt'
 COOKIES_YOUTUBE = 'cookies_youtube.txt'
+MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 # Downloads papkasini yaratish
 os.makedirs("downloads", exist_ok=True)
 
 def is_valid_url(url):
-    """URL validligini tekshirish"""
+    """URL validatsiyasi"""
     try:
         result = urlparse(url)
         return all([result.scheme, result.netloc])
     except:
         return False
 
-def get_platform(url):
-    """URL qaysi platformaga tegishli ekanligini aniqlash"""
+def detect_platform(url):
+    """Platform aniqlash"""
     if 'instagram.com' in url:
         return 'instagram'
     elif 'youtube.com' in url or 'youtu.be' in url:
@@ -44,66 +45,69 @@ def get_platform(url):
     elif 'tiktok.com' in url:
         return 'tiktok'
     else:
-        return None
-
-async def check_subscription_status(context, user_id):
-    """Kanal a'zoligini tekshirish"""
-    try:
-        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        return member.status in ['member', 'creator', 'administrator']
-    except Exception as e:
-        logger.error(f"Kanal a'zoligini tekshirishda xato: {e}")
-        return False
+        return 'unknown'
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start komandasi"""
     user = update.effective_user
     
     # Kanal a'zoligini tekshirish
-    is_subscribed = await check_subscription_status(context, user.id)
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user.id)
+        is_member = member.status in ['member', 'creator', 'administrator']
+    except Exception as e:
+        logger.error(f"Kanal a'zoligini tekshirishda xato: {e}")
+        is_member = False
     
-    if not is_subscribed:
-        btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔔 Kanalga obuna bo'lish", 
-                                url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}")],
+    if not is_member:
+        keyboard = [
+            [InlineKeyboardButton("🔔 Kanalga obuna bo'lish", url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}")],
             [InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub")]
-        ])
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
         
-        welcome_text = f"""
-👋 Assalomu alaykum, {user.first_name}!
-
-🤖 **Video Downloader Bot**ga xush kelibsiz!
-
-📱 **Qo'llab-quvvatlanadigan platformalar:**
-• Instagram (Reels, IGTV, Post)
-• YouTube (Video, Shorts)
-• TikTok
-
-📥 **Yuklab olish formatlari:**
-• MP4 (Video)
-• MP3 (Audio)
-
-🎯 **Sifat tanlovi:**
-• 144p, 228p, 556p, 1024p
-
-⚠️ **Botdan foydalanish uchun kanalga obuna bo'ling:**
-        """
-        
-        await update.message.reply_text(welcome_text, reply_markup=btn, parse_mode='Markdown')
-    else:
-        main_menu = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📱 Instagram", callback_data="platform_instagram"),
-             InlineKeyboardButton("🎬 YouTube", callback_data="platform_youtube")],
-            [InlineKeyboardButton("🎵 TikTok", callback_data="platform_tiktok")],
-            [InlineKeyboardButton("ℹ️ Yordam", callback_data="help")]
-        ])
-        
-        await update.message.reply_text(
-            "🎬 **Video Downloader Bot**\n\n"
-            "Platformani tanlang yoki to'g'ridan-to'g'ri link yuboring:",
-            reply_markup=main_menu,
-            parse_mode='Markdown'
+        welcome_text = (
+            "👋 Assalomu alaykum!\n\n"
+            "🎬 **Video Downloader Bot**ga xush kelibsiz!\n\n"
+            "📱 **Qo'llab-quvvatlanadigan platformalar:**\n"
+            "• Instagram\n"
+            "• YouTube\n"
+            "• TikTok\n\n"
+            "📥 **Formatlar:**\n"
+            "• MP4 (Video)\n"
+            "• MP3 (Audio)\n\n"
+            "🎯 **Sifat tanlovlari:**\n"
+            "• 144p, 228p, 556p, 1024p\n\n"
+            "⚠️ Botdan foydalanish uchun kanalga obuna bo'ling:"
         )
+        
+        await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode='Markdown')
+    else:
+        await show_main_menu(update, context)
+
+async def show_main_menu(update, context):
+    """Asosiy menyu"""
+    keyboard = [
+        [InlineKeyboardButton("📥 Video yuklash", callback_data="download_menu")],
+        [InlineKeyboardButton("ℹ️ Yordam", callback_data="help"), 
+         InlineKeyboardButton("📊 Statistika", callback_data="stats")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    menu_text = (
+        "🎬 **Video Downloader Bot**\n\n"
+        "📱 Video linkini yuboring yoki menyudan tanlang:\n\n"
+        "🔗 **Qo'llab-quvvatlanadigan linklar:**\n"
+        "• Instagram: instagram.com/p/...\n"
+        "• YouTube: youtube.com/watch?v=...\n"
+        "• TikTok: tiktok.com/@.../video/...\n\n"
+        "💡 **Maslahat:** Linkni to'g'ridan-to'g'ri yuboring!"
+    )
+    
+    if update.callback_query:
+        await update.callback_query.edit_message_text(menu_text, reply_markup=reply_markup, parse_mode='Markdown')
+    else:
+        await update.message.reply_text(menu_text, reply_markup=reply_markup, parse_mode='Markdown')
 
 async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Obunani tekshirish"""
@@ -111,156 +115,40 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     
     user = update.effective_user
-    is_subscribed = await check_subscription_status(context, user.id)
     
-    if not is_subscribed:
-        await query.answer("❌ Hali ham obuna bo'lmagansiz!", show_alert=True)
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user.id)
+        is_member = member.status in ['member', 'creator', 'administrator']
+    except Exception as e:
+        logger.error(f"Obunani tekshirishda xato: {e}")
+        is_member = False
+    
+    if not is_member:
+        await query.answer("❌ Hali obuna bo'lmagansiz! Iltimos, kanalga obuna bo'ling.", show_alert=True)
     else:
-        main_menu = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📱 Instagram", callback_data="platform_instagram"),
-             InlineKeyboardButton("🎬 YouTube", callback_data="platform_youtube")],
-            [InlineKeyboardButton("🎵 TikTok", callback_data="platform_tiktok")],
-            [InlineKeyboardButton("ℹ️ Yordam", callback_data="help")]
-        ])
-        
-        await query.edit_message_text(
-            "✅ **Obuna tasdiqlandi!**\n\n"
-            "🎬 Platformani tanlang yoki to'g'ridan-to'g'ri link yuboring:",
-            reply_markup=main_menu,
-            parse_mode='Markdown'
-        )
-
-async def platform_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Platform tanlash"""
-    query = update.callback_query
-    await query.answer()
-    
-    platform = query.data.split('_')[1]
-    
-    platform_info = {
-        'instagram': {
-            'name': '📱 Instagram',
-            'example': 'https://www.instagram.com/p/...',
-            'formats': 'Reels, IGTV, Post videolari'
-        },
-        'youtube': {
-            'name': '🎬 YouTube', 
-            'example': 'https://www.youtube.com/watch?v=...',
-            'formats': 'Video, Shorts, Music'
-        },
-        'tiktok': {
-            'name': '🎵 TikTok',
-            'example': 'https://www.tiktok.com/@username/video/...',
-            'formats': 'TikTok videolari'
-        }
-    }
-    
-    info = platform_info[platform]
-    
-    back_btn = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_menu")]
-    ])
-    
-    await query.edit_message_text(
-        f"**{info['name']} Video Yuklovchi**\n\n"
-        f"📋 **Qo'llab-quvvatlanadi:** {info['formats']}\n"
-        f"🔗 **Misol:** `{info['example']}`\n\n"
-        f"📤 Video linkini yuboring:",
-        reply_markup=back_btn,
-        parse_mode='Markdown'
-    )
-    
-    context.user_data['selected_platform'] = platform
-
-async def back_to_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Asosiy menyuga qaytish"""
-    query = update.callback_query
-    await query.answer()
-    
-    main_menu = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📱 Instagram", callback_data="platform_instagram"),
-         InlineKeyboardButton("🎬 YouTube", callback_data="platform_youtube")],
-        [InlineKeyboardButton("🎵 TikTok", callback_data="platform_tiktok")],
-        [InlineKeyboardButton("ℹ️ Yordam", callback_data="help")]
-    ])
-    
-    await query.edit_message_text(
-        "🎬 **Video Downloader Bot**\n\n"
-        "Platformani tanlang yoki to'g'ridan-to'g'ri link yuboring:",
-        reply_markup=main_menu,
-        parse_mode='Markdown'
-    )
-
-async def help_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Yordam bo'limi"""
-    query = update.callback_query
-    await query.answer()
-    
-    help_text = """
-🤖 **Video Downloader Bot - Yordam**
-
-📱 **Qo'llab-quvvatlanadigan platformalar:**
-• Instagram (Reels, IGTV, Post)
-• YouTube (Video, Shorts, Music)
-• TikTok
-
-📥 **Yuklab olish formatlari:**
-• MP4 (Video) - turli sifatlarda
-• MP3 (Audio) - yuqori sifatda
-
-🎯 **Video sifatlari:**
-• 144p (Past sifat, kam hajm)
-• 228p (O'rta-past sifat)
-• 556p (O'rta sifat)
-• 1024p (Yuqori sifat)
-
-📋 **Foydalanish:**
-1. Platformani tanlang
-2. Video linkini yuboring
-3. Format va sifatni tanlang
-4. Yuklab oling!
-
-⚠️ **Eslatma:** Faqat ochiq (public) videolarni yuklab olish mumkin.
-    """
-    
-    back_btn = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_menu")]
-    ])
-    
-    await query.edit_message_text(help_text, reply_markup=back_btn, parse_mode='Markdown')
+        await query.edit_message_text("✅ Obuna tasdiqlandi!")
+        await asyncio.sleep(1)
+        await show_main_menu(update, context)
 
 async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """URL ni qayta ishlash"""
-    user = update.effective_user
-    
-    # Kanal a'zoligini tekshirish
-    is_subscribed = await check_subscription_status(context, user.id)
-    if not is_subscribed:
-        btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔔 Kanalga obuna bo'lish", 
-                                url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}")],
-            [InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub")]
-        ])
-        await update.message.reply_text(
-            "❌ Avval kanalga obuna bo'ling!", 
-            reply_markup=btn
-        )
-        return
-    
     url = update.message.text.strip()
     
-    # URL validligini tekshirish
+    # URL validatsiyasi
     if not is_valid_url(url):
-        await update.message.reply_text("❌ Noto'g'ri URL! Iltimos, to'g'ri link yuboring.")
+        await update.message.reply_text("❌ Noto'g'ri link! Iltimos, to'g'ri link yuboring.")
         return
     
-    # Platformani aniqlash
-    platform = get_platform(url)
-    if not platform:
+    # Platform aniqlash
+    platform = detect_platform(url)
+    
+    if platform == 'unknown':
         await update.message.reply_text(
-            "❌ Qo'llab-quvvatlanmaydigan platforma!\n\n"
+            "❌ Qo'llab-quvvatlanmaydigan platform!\n\n"
             "✅ Qo'llab-quvvatlanadigan platformalar:\n"
-            "• Instagram\n• YouTube\n• TikTok"
+            "• Instagram\n"
+            "• YouTube\n"
+            "• TikTok"
         )
         return
     
@@ -268,82 +156,78 @@ async def handle_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data['url'] = url
     context.user_data['platform'] = platform
     
-    # Format tanlash tugmalari
-    format_buttons = [
-        [InlineKeyboardButton("🎬 MP4 (Video)", callback_data="format_mp4"),
-         InlineKeyboardButton("🎵 MP3 (Audio)", callback_data="format_mp3")]
-    ]
+    # Format tanlash menyusi
+    await show_format_menu(update, context, platform)
+
+async def show_format_menu(update, context, platform):
+    """Format tanlash menyusi"""
+    keyboard = []
+    
+    if platform in ['youtube', 'instagram']:
+        keyboard.extend([
+            [InlineKeyboardButton("🎵 MP3 (Audio)", callback_data="format_mp3")],
+            [InlineKeyboardButton("🎬 MP4 (Video)", callback_data="format_mp4")]
+        ])
+    else:  # TikTok
+        keyboard.append([InlineKeyboardButton("🎬 MP4 (Video)", callback_data="format_mp4")])
+    
+    keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_menu")])
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
     
     platform_names = {
-        'instagram': '📱 Instagram',
-        'youtube': '🎬 YouTube', 
-        'tiktok': '🎵 TikTok'
+        'instagram': 'Instagram',
+        'youtube': 'YouTube',
+        'tiktok': 'TikTok'
     }
     
-    await update.message.reply_text(
-        f"✅ **{platform_names[platform]} linki qabul qilindi!**\n\n"
-        f"🔗 **Link:** `{url[:50]}...`\n\n"
-        f"📥 **Format tanlang:**",
-        reply_markup=InlineKeyboardMarkup(format_buttons),
-        parse_mode='Markdown'
-    )
+    text = f"📱 **{platform_names[platform]}** link aniqlandi!\n\nFormat tanlang:"
+    
+    await update.message.reply_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
-async def format_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Format tanlash"""
+async def show_quality_menu(update, context, format_type):
+    """Sifat tanlash menyusi"""
     query = update.callback_query
     await query.answer()
     
-    format_type = query.data.split('_')[1]
     context.user_data['format'] = format_type
     
-    if format_type == 'mp4':
-        # Video sifat tanlash
-        quality_buttons = [
-            [InlineKeyboardButton("📱 144p", callback_data="quality_144"),
-             InlineKeyboardButton("📺 228p", callback_data="quality_228")],
-            [InlineKeyboardButton("🖥️ 556p", callback_data="quality_556"),
-             InlineKeyboardButton("🎬 1024p", callback_data="quality_1024")],
-            [InlineKeyboardButton("🏆 Eng yaxshi sifat", callback_data="quality_best")]
+    if format_type == 'mp3':
+        keyboard = [
+            [InlineKeyboardButton("🎵 128 kbps", callback_data="quality_128")],
+            [InlineKeyboardButton("🎵 192 kbps", callback_data="quality_192")],
+            [InlineKeyboardButton("🎵 320 kbps", callback_data="quality_320")],
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_format")]
         ]
-        
-        await query.edit_message_text(
-            "🎬 **Video sifatini tanlang:**\n\n"
-            "📱 **144p** - Past sifat, kam hajm\n"
-            "📺 **228p** - O'rta-past sifat\n"
-            "🖥️ **556p** - O'rta sifat\n"
-            "🎬 **1024p** - Yuqori sifat\n"
-            "🏆 **Eng yaxshi** - Mavjud eng yuqori sifat",
-            reply_markup=InlineKeyboardMarkup(quality_buttons),
-            parse_mode='Markdown'
-        )
-    else:
-        # MP3 uchun to'g'ridan-to'g'ri yuklab olish
-        context.user_data['quality'] = 'audio'
-        await start_download(query, context)
+        text = "🎵 **Audio sifatini** tanlang:"
+    else:  # mp4
+        keyboard = [
+            [InlineKeyboardButton("📱 144p", callback_data="quality_144")],
+            [InlineKeyboardButton("📱 228p", callback_data="quality_228")],
+            [InlineKeyboardButton("📱 556p", callback_data="quality_556")],
+            [InlineKeyboardButton("📱 1024p", callback_data="quality_1024")],
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_format")]
+        ]
+        text = "🎬 **Video sifatini** tanlang:"
+    
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await query.edit_message_text(text, reply_markup=reply_markup, parse_mode='Markdown')
 
-async def quality_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sifat tanlash"""
+async def download_media(update, context, quality):
+    """Media yuklash"""
     query = update.callback_query
     await query.answer()
     
-    quality = query.data.split('_')[1]
-    context.user_data['quality'] = quality
-    
-    await start_download(query, context)
-
-async def start_download(query, context):
-    """Yuklab olishni boshlash"""
     url = context.user_data.get('url')
     platform = context.user_data.get('platform')
     format_type = context.user_data.get('format')
-    quality = context.user_data.get('quality')
     
-    if not all([url, platform, format_type, quality]):
-        await query.edit_message_text("❌ Ma'lumotlar to'liq emas. Qaytadan urinib ko'ring.")
+    if not url:
+        await query.edit_message_text("❌ Link topilmadi! Qaytadan boshlang.")
         return
     
-    # Yuklab olish jarayonini boshlash
-    progress_msg = await query.edit_message_text("⏬ **Yuklab olish boshlandi...**\n\n🔄 Tayyorlanmoqda...")
+    # Progress message
+    progress_msg = await query.edit_message_text("⏬ Yuklab olish boshlandi...\n⏳ Iltimos, kuting...")
     
     try:
         # yt-dlp sozlamalari
@@ -354,34 +238,33 @@ async def start_download(query, context):
             'ffmpeg_location': FFMPEG_PATH,
         }
         
-        # Platform bo'yicha cookie fayl
+        # Platform bo'yicha cookie
         if platform == 'instagram':
             ydl_opts['cookiefile'] = COOKIES_INSTAGRAM
         elif platform == 'youtube':
             ydl_opts['cookiefile'] = COOKIES_YOUTUBE
         
-        # Format va sifat sozlamalari
+        # Format sozlamalari
         if format_type == 'mp3':
             ydl_opts.update({
                 'format': 'bestaudio/best',
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
-                    'preferredquality': '192',
+                    'preferredquality': quality,
                 }],
             })
-        else:
-            # Video format
-            if quality == 'best':
-                ydl_opts['format'] = 'bestvideo+bestaudio/best'
-            elif quality == '144':
+        else:  # mp4
+            if quality == '144':
                 ydl_opts['format'] = 'worst[height<=144]/worst'
             elif quality == '228':
-                ydl_opts['format'] = 'best[height<=240]/best'
+                ydl_opts['format'] = 'best[height<=240]/best[height<=228]/best'
             elif quality == '556':
-                ydl_opts['format'] = 'best[height<=480]/best'
+                ydl_opts['format'] = 'best[height<=720]/best[height<=556]/best'
             elif quality == '1024':
-                ydl_opts['format'] = 'best[height<=720]/best'
+                ydl_opts['format'] = 'best[height<=1080]/best[height<=1024]/best'
+            else:
+                ydl_opts['format'] = 'best'
             
             ydl_opts['merge_output_format'] = 'mp4'
         
@@ -391,13 +274,9 @@ async def start_download(query, context):
                 try:
                     percent = d.get('_percent_str', 'N/A')
                     speed = d.get('_speed_str', 'N/A')
-                    asyncio.create_task(progress_msg.edit_text(
-                        f"⏬ **Yuklab olish jarayoni:**\n\n"
-                        f"📊 **Jarayon:** {percent}\n"
-                        f"🚀 **Tezlik:** {speed}\n"
-                        f"⏰ **Kutib turing...**",
-                        parse_mode='Markdown'
-                    ))
+                    asyncio.create_task(
+                        progress_msg.edit_text(f"⏬ Yuklab olish: {percent}\n🚀 Tezlik: {speed}")
+                    )
                 except:
                     pass
         
@@ -405,117 +284,185 @@ async def start_download(query, context):
         
         # Yuklab olish
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            await progress_msg.edit_text("🔍 **Video ma'lumotlari olinmoqda...**")
+            await progress_msg.edit_text("📊 Video ma'lumotlari olinmoqda...")
             
             info = ydl.extract_info(url, download=False)
-            title = info.get('title', 'Video')
+            title = info.get('title', 'Unknown')
             duration = info.get('duration', 0)
             
-            # Fayl hajmini tekshirish (50MB limit)
-            if info.get('filesize', 0) > 50 * 1024 * 1024:
-                await progress_msg.edit_text(
-                    "❌ **Fayl hajmi juda katta!**\n\n"
-                    "📏 **Maksimal hajm:** 50MB\n"
-                    "💡 **Tavsiya:** Pastroq sifatni tanlang"
-                )
+            # Davomiylik tekshirish (max 10 daqiqa)
+            if duration and duration > 600:
+                await progress_msg.edit_text("❌ Video juda uzun! Maksimal davomiylik: 10 daqiqa")
                 return
             
-            await progress_msg.edit_text("⏬ **Yuklab olish boshlandi...**")
-            
-            # Faylni yuklab olish
+            await progress_msg.edit_text("⏬ Yuklab olish boshlandi...")
             ydl.download([url])
             
-            # Yuklab olingan faylni topish
+            # Fayl topish
             filename = ydl.prepare_filename(info)
             if format_type == 'mp3':
                 filename = filename.rsplit('.', 1)[0] + '.mp3'
             
-            if not os.path.exists(filename):
-                raise Exception("Fayl topilmadi")
+            # Fayl hajmini tekshirish
+            if os.path.getsize(filename) > MAX_FILE_SIZE:
+                os.remove(filename)
+                await progress_msg.edit_text("❌ Fayl juda katta! Maksimal hajm: 50MB")
+                return
             
-            await progress_msg.edit_text("📤 **Fayl yuborilmoqda...**")
+            await progress_msg.edit_text("📤 Fayl yuborilmoqda...")
             
             # Faylni yuborish
+            caption = f"✅ **{title}**\n\n🎯 Sifat: {quality}{'kbps' if format_type == 'mp3' else 'p'}\n📱 Platform: {platform.title()}"
+            
             with open(filename, 'rb') as file:
                 if format_type == 'mp3':
-                    await query.message.reply_audio(
+                    await context.bot.send_audio(
+                        chat_id=query.message.chat_id,
                         audio=file,
-                        title=title,
-                        caption=f"🎵 **{title}**\n\n✅ Muvaffaqiyatli yuklab olindi!",
+                        caption=caption,
                         parse_mode='Markdown'
                     )
                 else:
-                    await query.message.reply_video(
+                    await context.bot.send_video(
+                        chat_id=query.message.chat_id,
                         video=file,
-                        caption=f"🎬 **{title}**\n\n"
-                                f"📊 **Sifat:** {quality}p\n"
-                                f"⏱️ **Davomiyligi:** {duration//60}:{duration%60:02d}\n\n"
-                                f"✅ Muvaffaqiyatli yuklab olindi!",
+                        caption=caption,
                         supports_streaming=True,
                         parse_mode='Markdown'
                     )
             
             # Faylni o'chirish
             os.remove(filename)
+            await progress_msg.delete()
             
-            # Muvaffaqiyat xabari
-            success_btn = InlineKeyboardMarkup([
-                [InlineKeyboardButton("🔄 Yana yuklab olish", callback_data="back_to_menu")]
-            ])
-            
-            await progress_msg.edit_text(
-                "✅ **Muvaffaqiyatli yakunlandi!**\n\n"
-                "🎉 Video yuborildi!\n"
-                "🔄 Yana video yuklab olish uchun tugmani bosing.",
-                reply_markup=success_btn,
-                parse_mode='Markdown'
-            )
+            # Statistika yangilash
+            stats = context.bot_data.get('stats', {'downloads': 0})
+            stats['downloads'] += 1
+            context.bot_data['stats'] = stats
             
     except Exception as e:
         logger.error(f"Yuklab olishda xato: {e}")
-        
-        error_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Qayta urinish", callback_data="back_to_menu")]
-        ])
-        
-        await progress_msg.edit_text(
-            f"❌ **Xatolik yuz berdi!**\n\n"
-            f"🔍 **Sabab:** {str(e)[:100]}...\n\n"
-            f"💡 **Tavsiyalar:**\n"
-            f"• Video ochiq (public) ekanligini tekshiring\n"
-            f"• Linkni qayta tekshiring\n"
-            f"• Boshqa sifatni tanlang",
-            reply_markup=error_btn,
-            parse_mode='Markdown'
-        )
+        error_text = f"❌ Xatolik yuz berdi!\n\n🔍 Sabab: {str(e)[:100]}...\n\n💡 Maslahatlar:\n• Link to'g'riligini tekshiring\n• Biroz kutib qayta urinib ko'ring\n• Video ochiq (public) ekanligini tekshiring"
+        await progress_msg.edit_text(error_text)
+
+async def show_help(update, context):
+    """Yordam bo'limi"""
+    query = update.callback_query
+    await query.answer()
+    
+    help_text = (
+        "ℹ️ **Yordam bo'limi**\n\n"
+        "🎯 **Qanday foydalanish:**\n"
+        "1. Video linkini yuboring\n"
+        "2. Format tanlang (MP3/MP4)\n"
+        "3. Sifat tanlang\n"
+        "4. Yuklab olishni kuting\n\n"
+        "📱 **Qo'llab-quvvatlanadigan platformalar:**\n"
+        "• Instagram (post, reel, story)\n"
+        "• YouTube (video, shorts)\n"
+        "• TikTok (video)\n\n"
+        "🎬 **Video sifatlari:**\n"
+        "• 144p - Kichik hajm\n"
+        "• 228p - O'rtacha sifat\n"
+        "• 556p - Yaxshi sifat\n"
+        "• 1024p - Yuqori sifat\n\n"
+        "🎵 **Audio sifatlari:**\n"
+        "• 128 kbps - Standart\n"
+        "• 192 kbps - Yaxshi\n"
+        "• 320 kbps - Eng yaxshi\n\n"
+        "⚠️ **Cheklovlar:**\n"
+        "• Maksimal fayl hajmi: 50MB\n"
+        "• Maksimal davomiylik: 10 daqiqa\n"
+        "• Faqat ochiq videolar\n\n"
+        "❓ **Muammo bo'lsa:**\n"
+        "• Link to'g'riligini tekshiring\n"
+        "• Internet aloqasini tekshiring\n"
+        "• Biroz kutib qayta urinib ko'ring"
+    )
+    
+    keyboard = [[InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(help_text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def show_stats(update, context):
+    """Statistika ko'rsatish"""
+    query = update.callback_query
+    await query.answer()
+    
+    stats = context.bot_data.get('stats', {'downloads': 0})
+    
+    stats_text = (
+        "📊 **Bot statistikasi**\n\n"
+        f"📥 Jami yuklab olingan: {stats['downloads']}\n"
+        f"👤 Sizning yuklab olishlaringiz: {context.user_data.get('downloads', 0)}\n\n"
+        "🎯 **Bot imkoniyatlari:**\n"
+        "• 3 ta platform qo'llab-quvvatlash\n"
+        "• 7 xil sifat tanlovlari\n"
+        "• MP3 va MP4 formatlar\n"
+        "• Tez va xavfsiz yuklab olish\n\n"
+        "💡 **Yangiliklar:**\n"
+        "• TikTok qo'llab-quvvatlash qo'shildi\n"
+        "• Sifat tanlovlari kengaytirildi\n"
+        "• Progress tracking qo'shildi"
+    )
+    
+    keyboard = [[InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_menu")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(stats_text, reply_markup=reply_markup, parse_mode='Markdown')
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback query handler"""
+    query = update.callback_query
+    data = query.data
+    
+    if data == "check_sub":
+        await check_subscription(update, context)
+    elif data == "back_to_menu":
+        await show_main_menu(update, context)
+    elif data == "download_menu":
+        await query.edit_message_text("🔗 Video linkini yuboring:")
+    elif data == "help":
+        await show_help(update, context)
+    elif data == "stats":
+        await show_stats(update, context)
+    elif data.startswith("format_"):
+        format_type = data.split("_")[1]
+        await show_quality_menu(update, context, format_type)
+    elif data.startswith("quality_"):
+        quality = data.split("_")[1]
+        await download_media(update, context, quality)
+    elif data == "back_to_format":
+        platform = context.user_data.get('platform', 'youtube')
+        await show_format_menu(update, context, platform)
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Xatoliklarni qayta ishlash"""
+    """Xatolik handler"""
     logger.error(f"Xatolik yuz berdi: {context.error}")
+    
+    if update and update.effective_message:
+        await update.effective_message.reply_text(
+            "❌ Kutilmagan xatolik yuz berdi!\n\n"
+            "🔄 Iltimos, qaytadan urinib ko'ring yoki /start buyrug'ini yuboring."
+        )
 
 def main():
     """Asosiy funksiya"""
-    # Botni yaratish
+    # Bot yaratish
     application = ApplicationBuilder().token(TOKEN).build()
     
-    # Handlerlarni qo'shish
+    # Handlerlar qo'shish
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(check_subscription, pattern="check_sub"))
-    application.add_handler(CallbackQueryHandler(platform_handler, pattern="platform_"))
-    application.add_handler(CallbackQueryHandler(back_to_menu, pattern="back_to_menu"))
-    application.add_handler(CallbackQueryHandler(help_handler, pattern="help"))
-    application.add_handler(CallbackQueryHandler(format_handler, pattern="format_"))
-    application.add_handler(CallbackQueryHandler(quality_handler, pattern="quality_"))
+    application.add_handler(CallbackQueryHandler(callback_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_url))
+    
+    # Error handler
     application.add_error_handler(error_handler)
     
-    logger.info("🤖 Bot ishga tushdi...")
-    
-    # Botni ishga tushirish
-    application.run_polling(
-        drop_pending_updates=True,
-        allowed_updates=Update.ALL_TYPES
-    )
+    # Bot ishga tushirish
+    logger.info("🚀 Bot ishga tushdi...")
+    application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
