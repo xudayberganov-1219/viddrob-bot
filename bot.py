@@ -8,18 +8,17 @@ from telegram.ext import (
 )
 import yt_dlp
 
-# <<< CONFIG >>>
-TOKEN = "7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME"
+nest_asyncio.apply()
+
+# Bu yerga haqiqiy tokeningizni qo'ying!
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+
 CHANNEL_USERNAME = "@IT_kanal_oo1"
-FFMPEG_PATH = "/usr/bin/ffmpeg"
+
+FFMPEG_PATH = "/usr/bin/ffmpeg"  # Serveringizga mos keladigan joyni yozing
+
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
-
-PORT = int(os.environ.get("PORT", 8080))
-WEBHOOK_URL = f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}/{TOKEN}"
-# masalan: viddrob-bot.up.railway.app
-
-nest_asyncio.apply()
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -144,12 +143,7 @@ async def main():
 
     print("✅ Bot ishga tushdi...")
 
-    await app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        webhook_url=WEBHOOK_URL
-    )
-
+    await app.run_polling()
 
 if __name__ == "__main__":
     asyncio.run(main())
