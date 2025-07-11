@@ -12,9 +12,10 @@ nest_asyncio.apply()
 
 TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
-FFMPEG_PATH = "ffmpeg"
+FFMPEG_PATH = "ffmpeg"  # Agar Railway-da maxsus path bo'lsa uni o'zgartiring
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -30,6 +31,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("🎬 YouTube yoki Instagram link yuboring:")
 
+
 async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     member = await context.bot.get_chat_member(CHANNEL_USERNAME, user.id)
@@ -38,6 +40,7 @@ async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.callback_query.answer("❌ Obuna bo‘lmagansiz!", show_alert=True)
     else:
         await update.callback_query.message.reply_text("✅ Obuna tasdiqlandi! Endi link yuboring.")
+
 
 async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text.strip()
@@ -59,6 +62,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("❌ Faqat YouTube yoki Instagram link yuboring.")
 
+
 async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -79,7 +83,7 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'ffmpeg_location': FFMPEG_PATH,
         }
 
-        # Cookie qo‘shish
+        # Cookie faylni formatga qarab tanlash
         if "instagram.com" in url:
             ydl_opts['cookiefile'] = COOKIES_INSTAGRAM
         elif "youtube.com" in url or "youtu.be" in url:
@@ -120,6 +124,7 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await query.message.reply_text(f"❌ Yuklab olishda xatolik:\n{e}")
 
+
 async def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -131,5 +136,6 @@ async def main():
     print("✅ Bot ishga tushdi...")
     await app.run_polling()
 
+
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())
