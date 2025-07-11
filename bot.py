@@ -10,24 +10,29 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+# TOKEN va kanal
+TOKEN = os.getenv("BOT_TOKEN") or '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 
-# Railway uchun to‘g‘ri port va webhook URL
+# Railway uchun webhook
 PORT = int(os.environ.get("PORT", 8080))
 WEBHOOK_URL = f"https://viddrob-bot.up.railway.app/{TOKEN}"
 
+# FFMPEG yo‘li
 FFMPEG_PATH = "/usr/bin/ffmpeg"
 
+# Cookie fayllar
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print("✅ /start komandasi keldi")  # Debug
     user = update.effective_user
     try:
         member = await context.bot.get_chat_member(CHANNEL_USERNAME, user.id)
-    except Exception:
+    except Exception as e:
+        print("❗ get_chat_member xatolik:", e)
         member = None
 
     if not member or member.status not in ['member', 'creator', 'administrator']:
@@ -151,7 +156,6 @@ async def main():
         webhook_url=WEBHOOK_URL
     )
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.get_event_loop().run_until_complete(main())
 
+if __name__ == "__main__":
+    asyncio.get_event_loop().run_until_complete(main())
