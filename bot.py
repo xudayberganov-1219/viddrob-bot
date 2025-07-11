@@ -1,13 +1,12 @@
-import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler,
     CallbackQueryHandler, ContextTypes, filters
 )
-import yt_dlp
 import os
+import yt_dlp
 
-TOKEN = "7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME"
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 FFMPEG_PATH = "ffmpeg"
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
@@ -82,7 +81,6 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'ffmpeg_location': FFMPEG_PATH,
         }
 
-        # Cookie qo‘shish
         if "instagram.com" in url:
             ydl_opts['cookiefile'] = COOKIES_INSTAGRAM
         elif "youtube.com" in url or "youtu.be" in url:
@@ -123,7 +121,7 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await query.message.reply_text(f"❌ Yuklab olishda xatolik:\n{e}")
 
-async def main():
+def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(CommandHandler("start", start))
@@ -132,7 +130,7 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
     print("✅ Bot ishga tushdi...")
-    await app.run_polling()
+    app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
