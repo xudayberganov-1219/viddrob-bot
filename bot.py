@@ -1,4 +1,3 @@
-import asyncio
 import os
 import nest_asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -10,12 +9,10 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+TOKEN = 'SIZNING_BOT_TOKENINGIZ_BU YERGA'  # o'zingizni haqiqiy tokeningizni kiriting
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 
-# FFMPEG_PATH ni olib tashladim, chunki ffmpeg yo'q
-# FFMPEG_PATH = "/usr/bin/ffmpeg"
-
+FFMPEG_PATH = "/usr/bin/ffmpeg"  # Agar Railway yoki serverda ffmpeg o'rnatilgan bo'lsa, yo'l shunday bo'ladi
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
 
@@ -89,8 +86,8 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ydl_opts = {
             'outtmpl': output,
             'quiet': True,
+            'ffmpeg_location': FFMPEG_PATH,
             'noplaylist': True,
-            # 'ffmpeg_location': FFMPEG_PATH,  # olib tashlandi
         }
 
         if "instagram.com" in url:
@@ -110,8 +107,8 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif format_type in ["mp4", "insta"]:
             ydl_opts.update({
-                'format': 'best',
-                # 'merge_output_format': 'mp4', # ffmpeg kerak bo‘ladi, olib tashlash mumkin
+                'format': 'bestvideo+bestaudio/best',
+                'merge_output_format': 'mp4',
             })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -145,4 +142,5 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
+    import asyncio
     asyncio.run(main())
