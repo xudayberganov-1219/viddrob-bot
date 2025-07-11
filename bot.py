@@ -13,8 +13,11 @@ nest_asyncio.apply()
 TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 
-# FFMPEG ning to‘liq yo‘lini kiriting (Railway kabi serverlarda bu muhim)
-FFMPEG_PATH = "/usr/bin/ffmpeg"  # Railway yoki Linux server uchun to‘g‘ri yo‘lni yozing
+# Railway uchun to‘g‘ri port va webhook URL
+PORT = int(os.environ.get("PORT", 8080))
+WEBHOOK_URL = f"https://viddrob-bot.up.railway.app/{TOKEN}"
+
+FFMPEG_PATH = "/usr/bin/ffmpeg"
 
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
@@ -93,7 +96,6 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'noplaylist': True,
         }
 
-        # Cookie qo‘shish
         if "instagram.com" in url:
             ydl_opts['cookiefile'] = COOKIES_INSTAGRAM
         elif "youtube.com" in url or "youtu.be" in url:
@@ -121,7 +123,6 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if format_type == "mp3":
                 filename = filename.rsplit(".", 1)[0] + ".mp3"
 
-        # Faylni yuborish
         with open(filename, "rb") as f:
             if filename.endswith(".mp3"):
                 await query.message.reply_audio(f, caption="✅ MP3 tayyor!")
@@ -143,7 +144,12 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
 
     print("✅ Bot ishga tushdi...")
-    await app.run_polling()
+
+    await app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        webhook_url=WEBHOOK_URL
+    )
 
 
 if __name__ == "__main__":
