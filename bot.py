@@ -9,7 +9,7 @@ from telegram.ext import (
 import yt_dlp
 
 # <<< CONFIG >>>
-TOKEN = "YOUR_TOKEN"
+TOKEN = "7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME"
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 FFMPEG_PATH = "/usr/bin/ffmpeg"
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
