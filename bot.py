@@ -10,10 +10,11 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'  # <<< O'ZINGIZNING BOT TOKENINGIZNI QO'YING
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
 CHANNEL_USERNAME = "@IT_kanal_oo1"
 FFMPEG_PATH = "ffmpeg"
-COOKIES_PATH = "cookies.txt"
+COOKIES_INSTAGRAM = "cookies_instagram.txt"
+COOKIES_YOUTUBE = "cookies_youtube.txt"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -24,17 +25,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔔 Kanalga obuna bo‘lish", url=f"https://t.me/{CHANNEL_USERNAME.strip('@')}")],
             [InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub")]
         ])
-        await update.message.reply_text("👋 Salom!\nBotdan foydalanish uchun avval kanalga obuna bo‘ling:", reply_markup=btn)
+        await update.message.reply_text("👋 Salom!\nBotdan foydalanish uchun kanalga obuna bo‘ling:", reply_markup=btn)
         return
 
-    await update.message.reply_text("🎬 YouTube yoki Instagram link yuboring va formatni tanlang:")
+    await update.message.reply_text("🎬 YouTube yoki Instagram link yuboring:")
 
 async def check_subscription(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     member = await context.bot.get_chat_member(CHANNEL_USERNAME, user.id)
 
     if member.status not in ['member', 'creator', 'administrator']:
-        await update.callback_query.answer("❌ Hali obuna bo‘lmadingiz!", show_alert=True)
+        await update.callback_query.answer("❌ Obuna bo‘lmagansiz!", show_alert=True)
     else:
         await update.callback_query.message.reply_text("✅ Obuna tasdiqlandi! Endi link yuboring.")
 
@@ -56,7 +57,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("📥 Instagram videoni yuklashni tasdiqlang:", reply_markup=btn)
 
     else:
-        await update.message.reply_text("❌ Noto‘g‘ri link. Faqat YouTube yoki Instagram linklarini yuboring.")
+        await update.message.reply_text("❌ Faqat YouTube yoki Instagram link yuboring.")
 
 async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -78,8 +79,11 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'ffmpeg_location': FFMPEG_PATH,
         }
 
+        # Cookie qo‘shish
         if "instagram.com" in url:
-            ydl_opts['cookiefile'] = COOKIES_PATH
+            ydl_opts['cookiefile'] = COOKIES_INSTAGRAM
+        elif "youtube.com" in url or "youtu.be" in url:
+            ydl_opts['cookiefile'] = COOKIES_YOUTUBE
 
         if format_type == "mp3":
             ydl_opts.update({
@@ -91,9 +95,10 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'preferredquality': '192',
                 }],
             })
-        elif format_type == "mp4":
+
+        elif format_type == "mp4" or format_type == "insta":
             ydl_opts.update({
-                'format': 'bestvideo+bestaudio',
+                'format': 'bestvideo+bestaudio/best',
                 'noplaylist': True,
                 'merge_output_format': 'mp4',
             })
