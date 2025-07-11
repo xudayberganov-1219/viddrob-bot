@@ -3,16 +3,17 @@ import os
 import nest_asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler,
-    ContextTypes, filters
+    ApplicationBuilder, CommandHandler, MessageHandler,
+    CallbackQueryHandler, ContextTypes, filters
 )
 import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'  # <<< BU YERGA O'Z BOT TOKENINGIZNI YOZING
 CHANNEL_USERNAME = "@IT_kanal_oo1"
-FFMPEG_PATH = "ffmpeg"  # Agar renderda ishlatsa, system-wide ffmpeg ishlatiladi
+FFMPEG_PATH = "ffmpeg"  # Railway server uchun
+COOKIES_PATH = "cookies.txt"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -71,35 +72,30 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         output = "%(title)s.%(ext)s"
+        ydl_opts = {
+            'outtmpl': output,
+            'quiet': True,
+            'ffmpeg_location': FFMPEG_PATH,
+            'cookiefile': COOKIES_PATH if "instagram.com" in url else None
+        }
 
-        if format_type == "insta":
-            ydl_opts = {
-                'outtmpl': output,
-                'quiet': True,
-                'ffmpeg_location': FFMPEG_PATH,
-            }
-        elif format_type == "mp3":
-            ydl_opts = {
+        if format_type == "mp3":
+            ydl_opts.update({
                 'format': 'bestaudio/best',
-                'ffmpeg_location': FFMPEG_PATH,
-                'outtmpl': output,
                 'noplaylist': True,
-                'quiet': True,
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
                     'preferredcodec': 'mp3',
                     'preferredquality': '192',
                 }],
-            }
-        else:  # mp4
-            ydl_opts = {
+            })
+
+        elif format_type == "mp4":
+            ydl_opts.update({
                 'format': 'bestvideo+bestaudio',
-                'ffmpeg_location': FFMPEG_PATH,
-                'outtmpl': output,
                 'noplaylist': True,
-                'quiet': True,
                 'merge_output_format': 'mp4',
-            }
+            })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
