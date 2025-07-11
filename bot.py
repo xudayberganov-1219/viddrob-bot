@@ -10,9 +10,9 @@ import yt_dlp
 
 nest_asyncio.apply()
 
-TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'  # <<< BU YERGA O'Z BOT TOKENINGIZNI YOZING
+TOKEN = '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'  # <<< O'ZINGIZNING BOT TOKENINGIZNI QO'YING
 CHANNEL_USERNAME = "@IT_kanal_oo1"
-FFMPEG_PATH = "ffmpeg"  # Railway server uchun
+FFMPEG_PATH = "ffmpeg"
 COOKIES_PATH = "cookies.txt"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -76,8 +76,10 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             'outtmpl': output,
             'quiet': True,
             'ffmpeg_location': FFMPEG_PATH,
-            'cookiefile': COOKIES_PATH if "instagram.com" in url else None
         }
+
+        if "instagram.com" in url:
+            ydl_opts['cookiefile'] = COOKIES_PATH
 
         if format_type == "mp3":
             ydl_opts.update({
@@ -89,7 +91,6 @@ async def download_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     'preferredquality': '192',
                 }],
             })
-
         elif format_type == "mp4":
             ydl_opts.update({
                 'format': 'bestvideo+bestaudio',
