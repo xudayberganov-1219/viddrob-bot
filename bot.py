@@ -8,31 +8,25 @@ from telegram.ext import (
 )
 import yt_dlp
 
-nest_asyncio.apply()
-
-# TOKEN va kanal
-TOKEN = os.getenv("BOT_TOKEN") or '7619009078:AAF7TKU9j4QikKjIb46BZktox3-MCd9SbME'
+# <<< CONFIG >>>
+TOKEN = "YOUR_TOKEN"
 CHANNEL_USERNAME = "@IT_kanal_oo1"
-
-# Railway uchun webhook
-PORT = int(os.environ.get("PORT", 8080))
-WEBHOOK_URL = f"https://viddrob-bot.up.railway.app/{TOKEN}"
-
-# FFMPEG yo‘li
 FFMPEG_PATH = "/usr/bin/ffmpeg"
-
-# Cookie fayllar
 COOKIES_INSTAGRAM = "cookies_instagram.txt"
 COOKIES_YOUTUBE = "cookies_youtube.txt"
 
+PORT = int(os.environ.get("PORT", 8080))
+WEBHOOK_URL = f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}/{TOKEN}"
+# masalan: viddrob-bot.up.railway.app
+
+nest_asyncio.apply()
+
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("✅ /start komandasi keldi")  # Debug
     user = update.effective_user
     try:
         member = await context.bot.get_chat_member(CHANNEL_USERNAME, user.id)
-    except Exception as e:
-        print("❗ get_chat_member xatolik:", e)
+    except Exception:
         member = None
 
     if not member or member.status not in ['member', 'creator', 'administrator']:
@@ -158,9 +152,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    import sys
-    if sys.platform.startswith("win"):
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
-    nest_asyncio.apply()
     asyncio.run(main())
